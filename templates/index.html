@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Churn Analysis Dashboard</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f1f3f5;
+      position: relative;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url('/static/images/bg.png') no-repeat center center fixed;
+      background-size: 45% auto;
+      filter: blur(5px);
+      z-index: -1;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .navbar-custom {
+      background-color: #4e73df;
+    }
+
+    .navbar-brand {
+      font-weight: 600;
+    }
+
+    .card {
+      border: none;
+      border-radius: 1rem;
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    .card-header {
+      background-color: #4e73df;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .btn-primary {
+      background-color: #4e73df;
+      border-color: #4e73df;
+    }
+
+    .btn-primary:hover {
+      background-color: #2e59d9;
+      border-color: #2653c9;
+    }
+
+    .btn-warning {
+      background-color: #f6c23e;
+      border-color: #f6c23e;
+    }
+
+    .btn-warning:hover {
+      background-color: #dda20a;
+      border-color: #d19f0a;
+    }
+
+    .btn-secondary {
+      background-color: #858796;
+      border-color: #858796;
+      color: #fff;
+    }
+
+    .btn-secondary:hover {
+      background-color: #6c757d;
+      border-color: #6c757d;
+    }
+
+    footer {
+      margin-top: 2rem;
+      color: #6c757d;
+    }
+
+    /* Title styling */
+    h1 {
+      font-weight: bold;
+      font-size: 3rem;
+      color: #000000; /* Changed from yellow to black */
+      text-align: center;
+      margin-top: 5rem;
+      z-index: 2;
+    }
+
+    /* Spinner and result display styling */
+    #loadingSpinner,
+    #resultDisplay {
+      transition: opacity 0.5s ease-in-out;
+    }
+
+    #loadingSpinner {
+      display: none;
+      text-align: center;
+      margin-top: 1rem;
+    }
+
+    #resultDisplay {
+      margin-top: 1rem;
+    }
+
+    /* Footer ticker effect */
+    .footer-ticker {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background-color: #2653c9;
+      color: #000000;
+      overflow: hidden;
+      white-space: nowrap;
+      z-index: 1000;
+    }
+
+    .ticker-text {
+      display: inline-block;
+      padding-left: 100%;
+      animation: scroll-left 20s linear infinite;
+    }
+
+    @keyframes scroll-left {
+      0%   { transform: translateX(0%); }
+      100% { transform: translateX(-100%); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-custom">
+    <div class="container">
+      <a class="navbar-brand text-white" href="#">Churn Dashboard</a>
+    </div>
+  </nav>
+
+  <div class="container my-5 content">
+    <h1 class="mb-5">Customer Churn Analysis</h1>
+
+    <!-- Back Button -->
+    {% if result or image_path %}
+    <div class="text-center mb-4">
+      <a href="/" class="btn btn-secondary" id="backButton">Back</a>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+
+      <!-- Model Prediction -->
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">Model Prediction</div>
+          <div class="card-body">
+            {% if result %}
+              <div class="alert alert-info">{{ result }}</div>
+            {% else %}
+              <p>Calculate.</p>
+            {% endif %}
+            <form id="predictForm" class="d-grid">
+              <button type="submit" id="predictButton" class="btn btn-primary btn-lg">Predict</button>
+            </form>
+
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="mt-2">Predicting...</p>
+            </div>
+
+            <!-- Result Display -->
+            <div id="resultDisplay"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visualizations -->
+      <div class="col-md-6">
+        <div class="card text-center">
+          <div class="card-header">Visualizations</div>
+          <div class="card-body">
+            <div class="d-flex justify-content-center flex-wrap gap-2">
+              <a href="/plot/tenure" class="btn btn-outline-primary btn-sm">Churn vs Tenure</a>
+              <a href="/plot/monthly" class="btn btn-outline-secondary btn-sm">Churn vs Monthly Charges</a>
+              <a href="/plot/heatmap" class="btn btn-outline-success btn-sm">Correlation Heatmap</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confusion Matrix Selection -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">Confusion Matrix</div>
+          <div class="card-body">
+            {% if error %}
+              <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+            <form method="POST" action="/matrix" class="row g-2 align-items-center">
+              <div class="col-auto flex-grow-1">
+                <select name="model" class="form-select">
+                  <option value="" {% if model_choice == "" %}selected{% endif %}>Select a model</option>
+                  <option value="ann" {% if model_choice == "ann" %}selected{% endif %}>ANN</option>
+                  <option value="xgb" {% if model_choice == "xgb" %}selected{% endif %}>XGBoost</option>
+                </select>
+              </div>
+              <div class="col-auto">
+                <button type="submit" class="btn btn-warning btn-lg">Generate</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generated Plot -->
+      {% if image_path %}
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">Generated Plot</div>
+          <div class="card-body text-center">
+            <img src="{{ image_path }}" alt="Plot Image" class="img-fluid rounded shadow">
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- Footer with ticker -->
+  <div class="footer-ticker">
+    <div class="ticker-text">
+      Churn prediction is the process of identifying customers who are likely to discontinue using a product or service, often by canceling their subscriptions or stopping their purchases. It involves analyzing customer behavior, usage patterns, and other relevant data to predict which customers are at the highest risk of churning. 
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="text-center py-4">
+    <small>&copy; 2025 Churn Analysis Corp. All rights reserved.</small>
+  </footer>
+
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Custom JavaScript -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+  const predictForm = document.getElementById('predictForm');
+  const predictButton = document.getElementById('predictButton');
+  const loadingSpinner = document.getElementById('loadingSpinner');
+  const resultDisplay = document.getElementById('resultDisplay');
+  const backButton = document.getElementById('backButton'); // Select the back button
+
+  // Back button event to ensure it's working properly
+  if (backButton) {
+    backButton.addEventListener('click', function() {
+      window.location.href = '/'; // Navigate to the home page (or whatever route you want)
+    });
+  }
+
+  predictForm.addEventListener('submit', function (event) {
+    event.preventDefault(); // Prevent default form submission
+
+    // Show the loading spinner
+    loadingSpinner.style.display = 'block';
+    resultDisplay.innerHTML = ''; // Clear previous results
+
+    // Disable the Predict button to prevent multiple clicks
+    predictButton.disabled = true;
+
+    // Simulate a 10-second processing delay before fetching the accuracy score
+    setTimeout(function () {
+      // Fetch the accuracy score from the backend
+      fetch('/predict')
+        .then(response => response.json())
+        .then(data => {
+          // Hide the loading spinner
+          loadingSpinner.style.display = 'none';
+
+          // Display the accuracy scores with 2 decimal places
+          resultDisplay.innerHTML = `
+            <div class="alert alert-success">
+              <strong>ANN Accuracy:</strong> ${data.ann_accuracy.toFixed(2)}%<br>
+              <strong>XGBoost Accuracy:</strong> ${data.xgb_accuracy.toFixed(2)}%
+            </div>
+          `;
+
+          // Re-enable the Predict button
+          predictButton.disabled = false;
+        })
+        .catch(error => {
+          // Hide the loading spinner
+          loadingSpinner.style.display = 'none';
+
+          // Display an error message
+          resultDisplay.innerHTML = `
+            <div class="alert alert-danger">
+              An error occurred while fetching the accuracy scores. Please try again later.
+            </div>
+          `;
+
+          // Re-enable the Predict button
+          predictButton.disabled = false;
+          console.error('Error fetching accuracy scores:', error);
+        });
+    }, 10000); // 10000 milliseconds = 10 seconds
+  });
+});
+  </script>
+  
+</body>
+</html>
